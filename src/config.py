@@ -7,7 +7,7 @@ import os
 CHUNK_SIZE = 1000  # Adjust this value based on your needs
 
 # Gemini API Key (replace with your actual key)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyACdCxTY--EAcKbDwkMbo4KpsiD3YypJV8")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-gemini-api-key")
 
 # Chroma collection name
 COLLECTION_NAME = "pdf_chunks"

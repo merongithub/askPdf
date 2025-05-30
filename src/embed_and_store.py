@@ -24,9 +24,9 @@ embeddings = model.encode(chunks).tolist()
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection(COLLECTION_NAME)
 # Delete all items in the collection by their IDs
-existing = collection.get()
-if existing["ids"]:
-    collection.delete(ids=existing["ids"])
+# existing = collection.get()
+# if existing["ids"]:
+#     collection.delete(ids=existing["ids"])
 
 # Add new chunks
 collection.add(

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+chromadb/
+data/chunks.txt
+# ChromaDB folder
+chroma_db/
