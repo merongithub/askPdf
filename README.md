@@ -78,6 +78,26 @@ The script will:
 - **Empty Retrieval**: If the retrieval returns empty chunks, ensure that the PDF is processed correctly and that the ChromaDB collection is populated.
 - **API Key Issues**: Verify that your Gemini API key is correctly set in the `.env` file.
 
-## License
+## Launching the Streamlit App
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+To launch the Streamlit app, follow these steps:
+
+1. Ensure all dependencies are installed:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Run the Streamlit app:
+   ```bash
+   streamlit run src/app.py
+   ```
+
+3. Open your web browser and navigate to the URL provided in the terminal (usually http://localhost:8501).
+
+4. Upload a PDF file and ask questions about its content using the interface.
+
+## Additional Information
+
+- The app uses Streamlit for the user interface, allowing you to interact with the PDF content using a web-based interface.
+- Ensure your Google API key is correctly set in `config.py` to use the Gemini model for generating answers.
+
