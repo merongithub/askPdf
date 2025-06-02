@@ -1,38 +1,42 @@
 import chromadb
 from sentence_transformers import SentenceTransformer
-from config import COLLECTION_NAME
+import fitz  # PyMuPDF
 
-# Load and prepare chunks
-with open("data/chunks.txt", "r") as f:
-    content = f.read().strip()
-    words = content.split()
-    chunk_size = 50
-    chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
+# Constants
+CHUNK_SIZE = 50
+COLLECTION_NAME = "pdf_chunks"
 
-print("\nChunks to be stored:")
-print("-" * 50)
-for i, chunk in enumerate(chunks, 1):
-    print(f"\nChunk {i}:")
-    print(chunk)
-print("-" * 50)
+# Initialize models
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Use SentenceTransformer for embeddings
-model = SentenceTransformer("all-MiniLM-L6-v2")
-embeddings = model.encode(chunks).tolist()
-
-# Use a persistent ChromaDB client
-client = chromadb.PersistentClient(path="./chroma_db")
+# Initialize ChromaDB
+client = chromadb.Client()
 collection = client.get_or_create_collection(COLLECTION_NAME)
-# Delete all items in the collection by their IDs
-# existing = collection.get()
-# if existing["ids"]:
-#     collection.delete(ids=existing["ids"])
 
-# Add new chunks
-collection.add(
-    documents=chunks,
-    embeddings=embeddings,
-    ids=[f"chunk-{i}" for i in range(len(chunks))]
-)
+def read_and_chunk_pdf(pdf_path: str) -> list:
+    """Read PDF and split into chunks."""
+    doc = fitz.open(pdf_path)
+    text = "\n".join([page.get_text() for page in doc])
+    words = text.split()
+    return [" ".join(words[i:i + CHUNK_SIZE]) for i in range(0, len(words), CHUNK_SIZE)]
 
-print(f"Stored {len(chunks)} chunks in ChromaDB.")
+def store_chunks(chunks: list):
+    """Store chunks in ChromaDB."""
+    # Generate embeddings
+    embeddings = embedder.encode(chunks).tolist()
+    
+    # Clear existing collection
+    collection.delete(where={})
+    
+    # Add new chunks
+    collection.add(
+        documents=chunks,
+        embeddings=embeddings,
+        ids=[f"chunk-{i}" for i in range(len(chunks))]
+    )
+    print(f"✅ {len(chunks)} chunks stored.")
+
+if __name__ == "__main__":
+    pdf_path = "data/sample.pdf"
+    chunks = read_and_chunk_pdf(pdf_path)
+    store_chunks(chunks) 

@@ -1,7 +1,7 @@
-chromadb==0.6.3
-google-generativeai==0.8.5
-PyMuPDF==1.26.0
-sentence-transformers==4.1.0
-transformers==4.52.3
-tokenizers==0.21.1
-protobuf==5.29.5
+chromadb==0.4.22
+google-generativeai==0.3.2
+PyMuPDF==1.23.8
+sentence-transformers==2.5.1
+streamlit==1.32.2
+python-dotenv==1.0.1
+watchdog==3.0.0
