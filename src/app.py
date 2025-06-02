@@ -7,12 +7,11 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from tempfile import NamedTemporaryFile
-from config import GEMINI_API_KEY, COLLECTION_NAME
 
 # Config
 CHUNK_SIZE = 50
 COLLECTION_NAME = "pdf_chunks"
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Load models
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
