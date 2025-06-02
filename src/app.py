@@ -17,8 +17,8 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 
-# Initialize ChromaDB (persistent)
-client = chromadb.PersistentClient(path="./chroma_db")
+# Initialize ChromaDB (in-memory)
+client = chromadb.Client()
 collection = client.get_or_create_collection(COLLECTION_NAME)
 
 # Utility: Read and chunk PDF
