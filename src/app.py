@@ -3,7 +3,6 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 import streamlit as st
 import fitz  # PyMuPDF
-import chromadb
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from tempfile import NamedTemporaryFile
@@ -18,8 +17,25 @@ embedder = SentenceTransformer("all-MiniLM-L6-v2")
 chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 
 # Initialize ChromaDB (in-memory)
-client = chromadb.Client()
-collection = client.get_or_create_collection(COLLECTION_NAME)
+try:
+    import chromadb
+    client = chromadb.Client()
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"}
+    )
+except Exception as e:
+    st.error(f"""
+    ⚠️ ChromaDB Initialization Error ⚠️
+    
+    Failed to initialize ChromaDB: {str(e)}
+    
+    Please ensure all dependencies are correctly installed:
+    ```bash
+    pip install -r requirements.txt
+    ```
+    """)
+    st.stop()
 
 # Utility: Read and chunk PDF
 def read_and_chunk_pdf(pdf_file):
@@ -42,9 +58,12 @@ if uploaded_file:
     embeddings = embedder.encode(chunks).tolist()
 
     # Clear existing and store new chunks
-    existing = collection.get()
-    if existing["ids"]:
-        collection.delete(ids=existing["ids"])
+    try:
+        existing = collection.get()
+        if existing["ids"]:
+            collection.delete(ids=existing["ids"])
+    except:
+        pass  # Collection might be empty
 
     collection.add(
         documents=chunks,
@@ -57,9 +76,15 @@ if uploaded_file:
     query = st.text_input("Ask a question about the PDF:")
     if query:
         st.info(f"🔍 Processing question: {query}")
-        results = collection.query(query_texts=[query], n_results=5)
-        context = "\n".join(results['documents'][0])
-        prompt = f"""Use the following context to answer the question. If the information is not in the context, say so.\n\nContext:{context}\n\nQuestion: {query}\n\nAnswer:"""
-        response = chat_model.generate_content(prompt)
-        st.markdown("### 📖 Answer")
-        st.write(response.text)
+        try:
+            results = collection.query(
+                query_texts=[query],
+                n_results=min(5, len(chunks))
+            )
+            context = "\n".join(results['documents'][0])
+            prompt = f"""Use the following context to answer the question. If the information is not in the context, say so.\n\nContext:{context}\n\nQuestion: {query}\n\nAnswer:"""
+            response = chat_model.generate_content(prompt)
+            st.markdown("### 📖 Answer")
+            st.write(response.text)
+        except Exception as e:
+            st.error(f"Error processing query: {str(e)}")
