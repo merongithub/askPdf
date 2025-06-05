@@ -8,6 +8,12 @@ import google.generativeai as genai
 from tempfile import NamedTemporaryFile
 import torch
 import os
+import sys
+
+# Disable PyTorch's file watching in Streamlit Cloud
+if 'STREAMLIT_CLOUD' in os.environ:
+    os.environ['PYTORCH_JIT'] = '0'
+    os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
 
 # Config
 CHUNK_SIZE = 50
@@ -15,10 +21,11 @@ COLLECTION_NAME = "pdf_chunks"
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Load models
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_models():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     try:
+        # Force CPU mode in Streamlit Cloud
+        device = "cpu"
         embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
         return embedder
     except Exception as e:
@@ -36,8 +43,12 @@ def load_models():
         st.stop()
 
 # Initialize models
-embedder = load_models()
-chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
+try:
+    embedder = load_models()
+    chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
+except Exception as e:
+    st.error(f"Failed to initialize models: {str(e)}")
+    st.stop()
 
 # Initialize ChromaDB (in-memory)
 try:
