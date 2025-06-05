@@ -36,7 +36,7 @@ chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 # Initialize ChromaDB (in-memory)
 try:
     import chromadb
-    client = chromadb.Client()
+    client = chromadb.PersistentClient(path="/tmp/chroma")  # Use a temporary directory
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"}
