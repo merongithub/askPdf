@@ -6,6 +6,7 @@ import fitz  # PyMuPDF
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from tempfile import NamedTemporaryFile
+import torch
 
 # Config
 CHUNK_SIZE = 50
@@ -13,7 +14,23 @@ COLLECTION_NAME = "pdf_chunks"
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Load models
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+try:
+    embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+except Exception as e:
+    st.error(f"""
+    ⚠️ Model Loading Error ⚠️
+    
+    Failed to load the sentence transformer model: {str(e)}
+    
+    Please try reinstalling the dependencies:
+    ```bash
+    pip uninstall -y sentence-transformers torch
+    pip install -r requirements.txt
+    ```
+    """)
+    st.stop()
+
 chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 
 # Initialize ChromaDB (in-memory)
@@ -88,3 +105,5 @@ if uploaded_file:
             st.write(response.text)
         except Exception as e:
             st.error(f"Error processing query: {str(e)}")
+
+print(f"API Key: {st.secrets['GEMINI_API_KEY']}")
