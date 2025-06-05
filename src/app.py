@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from tempfile import NamedTemporaryFile
 import torch
+import os
 
 # Config
 CHUNK_SIZE = 50
@@ -14,23 +15,28 @@ COLLECTION_NAME = "pdf_chunks"
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Load models
-device = "cuda" if torch.cuda.is_available() else "cpu"
-try:
-    embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-except Exception as e:
-    st.error(f"""
-    ⚠️ Model Loading Error ⚠️
-    
-    Failed to load the sentence transformer model: {str(e)}
-    
-    Please try reinstalling the dependencies:
-    ```bash
-    pip uninstall -y sentence-transformers torch
-    pip install -r requirements.txt
-    ```
-    """)
-    st.stop()
+@st.cache_resource
+def load_models():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    try:
+        embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+        return embedder
+    except Exception as e:
+        st.error(f"""
+        ⚠️ Model Loading Error ⚠️
+        
+        Failed to load the sentence transformer model: {str(e)}
+        
+        Please try reinstalling the dependencies:
+        ```bash
+        pip uninstall -y sentence-transformers torch
+        pip install -r requirements.txt
+        ```
+        """)
+        st.stop()
 
+# Initialize models
+embedder = load_models()
 chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 
 # Initialize ChromaDB (in-memory)
@@ -105,5 +111,3 @@ if uploaded_file:
             st.write(response.text)
         except Exception as e:
             st.error(f"Error processing query: {str(e)}")
-
-print(f"API Key: {st.secrets['GEMINI_API_KEY']}")
