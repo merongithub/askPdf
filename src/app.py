@@ -50,10 +50,23 @@ except Exception as e:
     st.error(f"Failed to initialize models: {str(e)}")
     st.stop()
 
-# Initialize ChromaDB (in-memory)
+# Initialize ChromaDB with DuckDB
 try:
     import chromadb
-    client = chromadb.PersistentClient(path="/tmp/chroma")  # Use a temporary directory
+    from chromadb.config import Settings
+    
+    # Configure ChromaDB to use DuckDB
+    client = chromadb.PersistentClient(
+        path="/tmp/chroma",
+        settings=Settings(
+            anonymized_telemetry=False,
+            is_persistent=True,
+            persist_directory="/tmp/chroma",
+            allow_reset=True
+        )
+    )
+    
+    # Create or get collection
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"}
