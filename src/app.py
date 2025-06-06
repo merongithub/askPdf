@@ -2,47 +2,12 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 import streamlit as st
-import fitz  # PyMuPDF
-from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
+import requests
 from tempfile import NamedTemporaryFile
+import os
 
 # Config
-CHUNK_SIZE = 50
-COLLECTION_NAME = "pdf_chunks"
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-# Load models
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
-
-# Initialize ChromaDB (in-memory)
-try:
-    import chromadb
-    client = chromadb.Client()
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"}
-    )
-except Exception as e:
-    st.error(f"""
-    ⚠️ ChromaDB Initialization Error ⚠️
-    
-    Failed to initialize ChromaDB: {str(e)}
-    
-    Please ensure all dependencies are correctly installed:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    """)
-    st.stop()
-
-# Utility: Read and chunk PDF
-def read_and_chunk_pdf(pdf_file):
-    doc = fitz.open(pdf_file)
-    text = "\n".join([page.get_text() for page in doc])
-    words = text.split()
-    return [" ".join(words[i:i + CHUNK_SIZE]) for i in range(0, len(words), CHUNK_SIZE)]
+API_URL = "http://localhost:8000"  # Change this to your FastAPI server URL
 
 # UI
 st.title("🔍 Ask your PDF using Gemini + ChromaDB")
@@ -54,37 +19,41 @@ if uploaded_file:
         tmp_path = tmp.name
 
     st.info("📚 Processing PDF...")
-    chunks = read_and_chunk_pdf(tmp_path)
-    embeddings = embedder.encode(chunks).tolist()
-
-    # Clear existing and store new chunks
+    
+    # Upload PDF to FastAPI server
     try:
-        existing = collection.get()
-        if existing["ids"]:
-            collection.delete(ids=existing["ids"])
-    except:
-        pass  # Collection might be empty
-
-    collection.add(
-        documents=chunks,
-        embeddings=embeddings,
-        ids=[f"chunk-{i}" for i in range(len(chunks))]
-    )
-    st.success(f"✅ {len(chunks)} chunks stored.")
+        with open(tmp_path, "rb") as f:
+            files = {"file": ("document.pdf", f, "application/pdf")}
+            response = requests.post(f"{API_URL}/upload-pdf", files=files)
+            response.raise_for_status()
+            result = response.json()
+            st.success(f"✅ {result['message']}")
+    except Exception as e:
+        st.error(f"Error uploading PDF: {str(e)}")
+        st.stop()
+    finally:
+        # Clean up temporary file
+        os.unlink(tmp_path)
 
     # Ask a question
     query = st.text_input("Ask a question about the PDF:")
     if query:
         st.info(f"🔍 Processing question: {query}")
         try:
-            results = collection.query(
-                query_texts=[query],
-                n_results=min(5, len(chunks))
+            # Query FastAPI server
+            response = requests.post(
+                f"{API_URL}/query",
+                json={"query": query}
             )
-            context = "\n".join(results['documents'][0])
-            prompt = f"""Use the following context to answer the question. If the information is not in the context, say so.\n\nContext:{context}\n\nQuestion: {query}\n\nAnswer:"""
-            response = chat_model.generate_content(prompt)
+            response.raise_for_status()
+            result = response.json()
+            
             st.markdown("### 📖 Answer")
-            st.write(response.text)
+            st.write(result["answer"])
+            
+            with st.expander("View Context"):
+                for i, context in enumerate(result["context"], 1):
+                    st.markdown(f"**Context {i}:**")
+                    st.write(context)
         except Exception as e:
             st.error(f"Error processing query: {str(e)}")
