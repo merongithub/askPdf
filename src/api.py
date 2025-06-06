@@ -169,6 +169,17 @@ async def query_pdf(request: QueryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/clean-datasets")
+async def clean_datasets():
+    try:
+        # Clear all existing chunks from the collection
+        existing = collection.get()
+        if existing["ids"]:
+            collection.delete(ids=existing["ids"])
+        return {"message": "All datasets have been cleaned out successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cleaning datasets: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
