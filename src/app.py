@@ -9,9 +9,13 @@ from tempfile import NamedTemporaryFile
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
+
+os.environ["STREAMLIT_WATCH_TORCH"] = "false"
+
 # Optional: set CPU usage explicitly for Torch in cloud environments
 if 'STREAMLIT_CLOUD' in os.environ:
     os.environ['PYTORCH_JIT'] = '0'
+
 
 # Constants
 CHUNK_SIZE = 50
