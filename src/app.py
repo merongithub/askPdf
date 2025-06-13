@@ -2,6 +2,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 import os
+os.environ["STREAMLIT_WATCH_TORCH"] = "false"
 import streamlit as st
 import fitz  # PyMuPDF
 import torch
@@ -11,7 +12,6 @@ import google.generativeai as genai
 from huggingface_hub import login
 
 
-os.environ["STREAMLIT_WATCH_TORCH"] = "false"
 
 # Optional: set CPU usage explicitly for Torch in cloud environments
 if 'STREAMLIT_CLOUD' in os.environ:

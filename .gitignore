@@ -41,7 +41,7 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-.streamlit/
+.streamlit/secrets.toml
 chroma_db/
 embeddings/
 data/chunks.txt
