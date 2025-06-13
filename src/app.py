@@ -1,137 +1,101 @@
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+import os
 import streamlit as st
 import fitz  # PyMuPDF
+import torch
+from tempfile import NamedTemporaryFile
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-from tempfile import NamedTemporaryFile
-import torch
-import os
-import sys
 
-# Disable PyTorch's file watching in Streamlit Cloud
+# Optional: set CPU usage explicitly for Torch in cloud environments
 if 'STREAMLIT_CLOUD' in os.environ:
     os.environ['PYTORCH_JIT'] = '0'
-    os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
 
-# Config
+# Constants
 CHUNK_SIZE = 50
 COLLECTION_NAME = "pdf_chunks"
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# Load models
+# Load embedding model
 @st.cache_resource(show_spinner=False)
 def load_models():
-    try:
-        # Force CPU mode in Streamlit Cloud
-        device = "cpu"
-        embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-        return embedder
-    except Exception as e:
-        st.error(f"""
-        ⚠️ Model Loading Error ⚠️
-        
-        Failed to load the sentence transformer model: {str(e)}
-        
-        Please try reinstalling the dependencies:
-        ```bash
-        pip uninstall -y sentence-transformers torch
-        pip install -r requirements.txt
-        ```
-        """)
-        st.stop()
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 # Initialize models
 try:
     embedder = load_models()
     chat_model = genai.GenerativeModel("models/gemini-1.5-pro")
 except Exception as e:
-    st.error(f"Failed to initialize models: {str(e)}")
+    st.error(f"❌ Failed to load models: {str(e)}")
     st.stop()
 
-# Initialize ChromaDB with DuckDB
+# Initialize ChromaDB
 try:
     import chromadb
     from chromadb.config import Settings
-    
-    # Configure ChromaDB to use DuckDB
+
     client = chromadb.PersistentClient(
         path="/tmp/chroma",
-        settings=Settings(
-            anonymized_telemetry=False,
-            is_persistent=True,
-            persist_directory="/tmp/chroma",
-            allow_reset=True
-        )
+        settings=Settings(anonymized_telemetry=False)
     )
-    
-    # Create or get collection
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"}
     )
 except Exception as e:
-    st.error(f"""
-    ⚠️ ChromaDB Initialization Error ⚠️
-    
-    Failed to initialize ChromaDB: {str(e)}
-    
-    Please ensure all dependencies are correctly installed:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    """)
+    st.error(f"❌ ChromaDB Error: {str(e)}")
     st.stop()
 
-# Utility: Read and chunk PDF
-def read_and_chunk_pdf(pdf_file):
-    doc = fitz.open(pdf_file)
+# Chunking utility
+def read_and_chunk_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
     text = "\n".join([page.get_text() for page in doc])
     words = text.split()
     return [" ".join(words[i:i + CHUNK_SIZE]) for i in range(0, len(words), CHUNK_SIZE)]
 
-# UI
-st.title("🔍 Ask your PDF using Gemini + ChromaDB")
+# Streamlit UI
+st.title("📄 Ask Your PDF — RAG with Gemini + ChromaDB")
 
 uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
 if uploaded_file:
     with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(uploaded_file.read())
-        tmp_path = tmp.name
+        pdf_path = tmp.name
 
-    st.info("📚 Processing PDF...")
-    chunks = read_and_chunk_pdf(tmp_path)
+    st.info("🔍 Processing PDF...")
+    chunks = read_and_chunk_pdf(pdf_path)
     embeddings = embedder.encode(chunks).tolist()
 
-    # Clear existing and store new chunks
+    # Clear previous entries
     try:
-        existing = collection.get()
-        if existing["ids"]:
-            collection.delete(ids=existing["ids"])
-    except:
-        pass  # Collection might be empty
+        ids = collection.get()["ids"]
+        if ids:
+            collection.delete(ids=ids)
+    except Exception:
+        pass
 
+    # Store new chunks
     collection.add(
         documents=chunks,
         embeddings=embeddings,
         ids=[f"chunk-{i}" for i in range(len(chunks))]
     )
-    st.success(f"✅ {len(chunks)} chunks stored.")
+    st.success(f"✅ {len(chunks)} chunks added.")
 
-    # Ask a question
     query = st.text_input("Ask a question about the PDF:")
     if query:
-        st.info(f"🔍 Processing question: {query}")
+        st.info(f"🧠 Querying: {query}")
         try:
             results = collection.query(
                 query_texts=[query],
                 n_results=min(5, len(chunks))
             )
-            context = "\n".join(results['documents'][0])
-            prompt = f"""Use the following context to answer the question. If the information is not in the context, say so.\n\nContext:{context}\n\nQuestion: {query}\n\nAnswer:"""
+            context = "\n".join(results["documents"][0])
+            prompt = f"""Use the context below to answer the question. If context lacks the info, say so.\n\nContext:\n{context}\n\nQuestion: {query}\n\nAnswer:"""
             response = chat_model.generate_content(prompt)
             st.markdown("### 📖 Answer")
             st.write(response.text)
         except Exception as e:
-            st.error(f"Error processing query: {str(e)}")
+            st.error(f"❌ Error: {str(e)}")
