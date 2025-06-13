@@ -8,6 +8,7 @@ import torch
 from tempfile import NamedTemporaryFile
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
+from huggingface_hub import login
 
 
 os.environ["STREAMLIT_WATCH_TORCH"] = "false"
@@ -16,6 +17,8 @@ os.environ["STREAMLIT_WATCH_TORCH"] = "false"
 if 'STREAMLIT_CLOUD' in os.environ:
     os.environ['PYTORCH_JIT'] = '0'
 
+# Login to Hugging Face
+login(token=st.secrets["HF_TOKEN"])
 
 # Constants
 CHUNK_SIZE = 50
