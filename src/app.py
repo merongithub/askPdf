@@ -10,15 +10,26 @@ from tempfile import NamedTemporaryFile
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from huggingface_hub import login
+import logging
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# Debug: Print available secrets
+logger.info("Available secrets keys: %s", list(st.secrets.keys()))
 
 # Optional: set CPU usage explicitly for Torch in cloud environments
 if 'STREAMLIT_CLOUD' in os.environ:
     os.environ['PYTORCH_JIT'] = '0'
 
 # Login to Hugging Face
-login(token=st.secrets["HF_TOKEN"])
+try:
+    login(token=st.secrets["HF_TOKEN"])
+    logger.info("Successfully logged in to Hugging Face")
+except Exception as e:
+    logger.error("Failed to login to Hugging Face: %s", str(e))
+    raise
 
 # Constants
 CHUNK_SIZE = 50
@@ -42,15 +53,33 @@ except Exception as e:
 try:
     import chromadb
     from chromadb.config import Settings
+    import shutil
+    import os
+
+    # Set up database directory
+    chroma_path = os.path.join(os.getcwd(), "chroma_db")
+    os.makedirs(chroma_path, exist_ok=True)
+    print(f"Using ChromaDB at {chroma_path}")
 
     client = chromadb.PersistentClient(
-        path="/tmp/chroma",
-        settings=Settings(anonymized_telemetry=False)
+        path=chroma_path,
+        settings=Settings(
+            anonymized_telemetry=False,
+            allow_reset=True
+        )
     )
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"}
-    )
+    
+    # Create a new collection with explicit settings
+    try:
+        collection = client.get_collection(name=COLLECTION_NAME)
+        print("Using existing collection")
+    except:
+        collection = client.create_collection(
+            name=COLLECTION_NAME,
+            metadata={"hnsw:space": "cosine"},
+            embedding_function=None  # We'll handle embeddings separately
+        )
+        print("Created new collection")
 except Exception as e:
     st.error(f"❌ ChromaDB Error: {str(e)}")
     st.stop()
