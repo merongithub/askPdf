@@ -116,3 +116,11 @@ askPdf/
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## How to set up 
+
+pyenv install 3.10.12
+pyenv local 3.10.12
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+If using Streamlit Cloud, just set python_version = 3.10 in runtime.txt:
