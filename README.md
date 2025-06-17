@@ -124,12 +124,11 @@ The application uses Streamlit secrets for configuration. All sensitive informat
 4. Push to the branch
 5. Create a Pull Request
 
-## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
+- Run tests:
+  ```bash
+  python -m unittest tests/test_pdf_processing.py
+  ```
 - Google Gemini AI for the language model
 - Vertex AI for vector search capabilities
 - Streamlit for the web interface framework
