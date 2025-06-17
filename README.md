@@ -1,3 +1,9 @@
+# AskPDF
+
+<p align="center">
+  <img src="assets/askPdf.png" alt="AskPDF Application Screenshot" width="300">
+</p>
+
 # PDF Question Answering Application
 
 A Streamlit application that allows users to upload PDF documents and ask questions about their content using Google's Gemini AI and Vertex AI Vector Search.
